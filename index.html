@@ -1,1026 +1,1053 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-
-// Main App Component
-const App = () => {
-    const [currentView, setCurrentView] = useState('introToFractions'); // Default view
-    const [mathJaxReady, setMathJaxReady] = useState(false); // New state to track MathJax readiness
-
-    // Load MathJax script dynamically once for the entire application
-    useEffect(() => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-        script.async = true;
-        script.onload = () => {
-            // Configure MathJax if needed, then typeset
-            if (window.MathJax) {
-                window.MathJax.startup.promise.then(() => {
-                    setMathJaxReady(true); // Set MathJax as ready
-                });
-            }
-        };
-        document.head.appendChild(script);
-
-        return () => {
-            // Clean up script if component unmounts
-            if (document.head.contains(script)) {
-                document.head.removeChild(script);
-            }
-        };
-    }, []);
-
-    const renderView = () => {
-        switch (currentView) {
-            case 'introToFractions':
-                return <IntroToFractions />;
-            case 'fractionsInFlags':
-                return <FractionsInFlags mathJaxReady={mathJaxReady} />;
-            case 'chocolateDistribution':
-                return <ChocolateDistribution mathJaxReady={mathJaxReady} />;
-            case 'coloringHats':
-                return <ColoringHats mathJaxReady={mathJaxReady} />;
-            case 'equalPartsOfShapes':
-                return <EqualPartsOfShapes />; // No MathJax needed here
-            case 'patternsAndFractions':
-                return <PatternsAndFractions mathJaxReady={mathJaxReady} />;
-            case 'ramusFarm':
-                return <RamusFarm mathJaxReady={mathJaxReady} />;
-            default:
-                return <IntroToFractions />;
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ભાગ અને પૂર્ણ - અપૂર્ણાંક શીખો</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f9ff; /* Light blue background */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top to allow scrolling */
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
         }
-    };
+        .game-container {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+            border: 2px solid #a7d9f7; /* Light blue border */
+            overflow: hidden; /* Ensure content stays within bounds */
+        }
+        .button {
+            background-color: #3b82f6; /* Blue */
+            color: white;
+            padding: 12px 25px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .button:hover {
+            background-color: #2563eb; /* Darker blue */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        .button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .fraction-display {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e40af; /* Dark blue */
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        .pizza-slice {
+            fill: #fcd34d; /* Yellow for pizza base */
+            stroke: #fbbf24; /* Darker yellow border */
+            stroke-width: 2;
+            transition: fill 0.3s ease;
+        }
+        .pizza-slice.selected {
+            fill: #ef4444; /* Red for selected slices */
+        }
+        .flag-stripe {
+            transition: background-color 0.3s ease;
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            text-align: center;
+            min-width: 300px;
+            max-width: 90%;
+            border: 3px solid #3b82f6;
+        }
+        .message-box h3 {
+            font-size: 1.8rem;
+            color: #1e40af;
+            margin-bottom: 20px;
+        }
+        .message-box p {
+            font-size: 1.1rem;
+            color: #333;
+            margin-bottom: 25px;
+        }
+        .message-box button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .message-box button:hover {
+            background-color: #2563eb;
+        }
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 flex flex-col items-center p-4 font-inter">
-            <h1 className="text-4xl font-extrabold text-gray-800 mb-8 text-center drop-shadow-lg">ગણિત ગમ્મત: ભાગ અને પૂર્ણ</h1>
+        /* Styling for the triangle activity */
+        .triangle-container {
+            position: relative;
+            width: 250px;
+            height: 216.5px; /* Height for equilateral triangle based on width */
+            margin: 30px auto;
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .triangle-svg {
+            width: 100%;
+            height: 100%;
+        }
+        .triangle-part {
+            fill: #f0f9ff; /* Light background for parts */
+            stroke: #a7d9f7;
+            stroke-width: 1;
+            transition: fill 0.3s ease;
+            cursor: pointer;
+        }
+        .triangle-part.colored {
+            fill: #ef4444; /* Red for colored parts */
+        }
 
-            <nav className="flex flex-wrap justify-center gap-3 md:gap-4 mb-8">
-                <button
-                    onClick={() => setCurrentView('introToFractions')}
-                    className={`px-4 py-2 rounded-full text-sm md:text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-md
-                        ${currentView === 'introToFractions' ? 'bg-blue-600 text-white shadow-lg border-2 border-blue-800' : 'bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 border border-blue-200'}`
-                    }
-                >
-                    પરિચય
-                </button>
-                <button
-                    onClick={() => setCurrentView('fractionsInFlags')}
-                    className={`px-4 py-2 rounded-full text-sm md:text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-md
-                        ${currentView === 'fractionsInFlags' ? 'bg-blue-600 text-white shadow-lg border-2 border-blue-800' : 'bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 border border-blue-200'}`
-                    }
-                >
-                    ધ્વજમાં અપૂર્ણાંક
-                </button>
-                <button
-                    onClick={() => setCurrentView('chocolateDistribution')}
-                    className={`px-4 py-2 rounded-full text-sm md:text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-md
-                        ${currentView === 'chocolateDistribution' ? 'bg-blue-600 text-white shadow-lg border-2 border-blue-800' : 'bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 border border-blue-200'}`
-                    }
-                >
-                    ચોકલેટ વહેંચણી
-                </button>
-                <button
-                    onClick={() => setCurrentView('coloringHats')}
-                    className={`px-4 py-2 rounded-full text-sm md:text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-md
-                        ${currentView === 'coloringHats' ? 'bg-blue-600 text-white shadow-lg border-2 border-blue-800' : 'bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 border border-blue-200'}`
-                    }
-                >
-                    ટોપીઓમાં રંગ પૂરો
-                </button>
-                <button
-                    onClick={() => setCurrentView('equalPartsOfShapes')}
-                    className={`px-4 py-2 rounded-full text-sm md:text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-md
-                        ${currentView === 'equalPartsOfShapes' ? 'bg-blue-600 text-white shadow-lg border-2 border-blue-800' : 'bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 border border-blue-200'}`
-                    }
-                >
-                    આકારોના સમાન ભાગો
-                </button>
-                <button
-                    onClick={() => setCurrentView('patternsAndFractions')}
-                    className={`px-4 py-2 rounded-full text-sm md:text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-md
-                        ${currentView === 'patternsAndFractions' ? 'bg-blue-600 text-white shadow-lg border-2 border-blue-800' : 'bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 border border-blue-200'}`
-                    }
-                >
-                    પેટર્ન અને અપૂર્ણાંક
-                </button>
-                <button
-                    onClick={() => setCurrentView('ramusFarm')}
-                    className={`px-4 py-2 rounded-full text-sm md:text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-md
-                        ${currentView === 'ramusFarm' ? 'bg-blue-600 text-white shadow-lg border-2 border-blue-800' : 'bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 border border-blue-200'}`
-                    }
-                >
-                    રામુનું ખેતર
-                </button>
-            </nav>
+        /* Styling for the rectangle activity */
+        .rectangle-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Example for 6 parts (2 rows, 3 cols) */
+            grid-template-rows: repeat(2, 1fr);
+            width: 300px;
+            height: 200px;
+            margin: 30px auto;
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .grid-cell {
+            background-color: #f0f9ff;
+            border: 1px solid #a7d9f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .grid-cell.colored {
+            background-color: #ef4444;
+        }
 
-            <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl p-6 border border-gray-200">
-                {renderView()}
-            </div>
+        /* Styling for the spinning top (bhambardo) */
+        .spinning-top-container {
+            width: 200px;
+            height: 200px;
+            margin: 30px auto;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .spinning-top-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #3b82f6;
+        }
+        .spinning-top-segment {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-origin: 50% 50%;
+            clip-path: polygon(50% 50%, 100% 0%, 100% 50%); /* Example for a segment */
+            /* This will be dynamically generated via JS for correct angles */
+        }
+        .spinning-button {
+            background-color: #10b981; /* Green */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        .spinning-button:hover {
+            background-color: #059669;
+            transform: translateY(-2px);
+        }
+
+        /* Styling for the vegetable farm */
+        .farm-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4x4 grid for simplicity */
+            grid-template-rows: repeat(4, 1fr);
+            width: 350px;
+            height: 350px;
+            margin: 30px auto;
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .farm-cell {
+            border: 1px solid #a7d9f7;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #333;
+            background-color: #dcfce7; /* Light green for farm */
+        }
+        .farm-cell img {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 5px;
+        }
+        .farm-cell span {
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer" class="game-container">
+        <h1 class="text-4xl font-bold text-blue-700 mb-8">ભાગ અને પૂર્ણ: અપૂર્ણાંક શીખો!</h1>
+
+        <!-- Main Menu -->
+        <div id="mainMenu" class="space-y-4">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-6">ચાલો અપૂર્ણાંક શીખીએ!</h2>
+            <button class="button w-full" onclick="showActivity('introFractions')">1. અપૂર્ણાંકનો પરિચય</button>
+            <button class="button w-full" onclick="showActivity('flagFractions')">2. રાષ્ટ્રીય ધ્વજમાં અપૂર્ણાંક</button>
+            <button class="button w-full" onclick="showActivity('circleParts')">3. વર્તુળના ભાગો</button>
+            <button class="button w-full" onclick="showActivity('chocolateHats')">4. ચોકલેટ અને ટોપીઓમાં અપૂર્ણાંક</button>
+            <button class="button w-full" onclick="showActivity('geometricShapes')">5. ભૌમિતિક આકારોના ભાગો</button>
+            <button class="button w-full" onclick="showActivity('greedyGatekeeper')">6. લોભી ચોકીદારની વાર્તા</button>
+            <button class="button w-full" onclick="showActivity('patternsFractions')">7. પેટર્ન અને અપૂર્ણાંક</button>
+            <button class="button w-full" onclick="showActivity('vegetableFarm')">8. શાકભાજીનું ખેતર</button>
         </div>
-    );
-};
 
-// --- Helper Functions for Canvas Drawing ---
-const drawGrid = (ctx, canvasWidth, canvasHeight, gridSize) => {
-    ctx.strokeStyle = '#e0e0e0'; // Light gray for grid lines
-    ctx.lineWidth = 1;
+        <!-- Activity Containers -->
 
-    for (let x = 0; x <= canvasWidth; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvasHeight);
-        ctx.stroke();
-    }
-    for (let y = 0; y <= canvasHeight; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvasWidth, y);
-        ctx.stroke();
-    }
-};
-
-// Helper function to format fraction string for MathJax
-const formatFractionForMathJax = (fractionStr) => {
-    if (!fractionStr || fractionStr === "0") return "0";
-    const parts = fractionStr.split('/');
-    if (parts.length === 2) {
-        return `$\\frac{${parts[0]}}{${parts[1]}}$`;
-    }
-    return fractionStr; // Return as is if not a simple fraction
-};
-
-// Helper function to get descriptive text for a fraction
-const getFractionDescription = (numerator, denominator) => {
-    if (denominator === 0) return "અમાન્ય અપૂર્ણાંક";
-    if (numerator === 0) return "0 (શૂન્ય ભાગ)";
-
-    let description = `${numerator}/${denominator}`;
-    if (numerator === 1) {
-        switch (denominator) {
-            case 2: description += " (અડધો ભાગ)"; break;
-            case 3: description += " (ત્રણમાંથી એક ભાગ)"; break;
-            case 4: description += " (ચોથો ભાગ)"; break;
-            case 5: description += " (પાંચમાંથી એક ભાગ)"; break;
-            case 6: description += " (છમાંથી એક ભાગ)"; break;
-            case 8: description += " (આઠમાંથી એક ભાગ)"; break;
-            case 10: description += " (દસમાંથી એક ભાગ)"; break;
-            case 12: description += " (બારમાંથી એક ભાગ)"; break;
-            case 16: description += " (સોળમાંથી એક ભાગ)"; break;
-            default: description += ` (${denominator} માંથી એક ભાગ)`; break;
-        }
-    } else {
-        description += ` (${denominator} માંથી ${numerator} ભાગ)`;
-    }
-    return description;
-};
-
-
-// --- 1. Introduction to Parts and Whole ---
-const IntroToFractions = () => {
-    const canvasRef = useRef(null);
-    const [numParts, setNumParts] = useState(2); // Number of equal parts
-    const [shapeType, setShapeType] = useState('circle'); // 'circle' or 'rectangle'
-
-    const drawShape = useCallback(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-
-        if (shapeType === 'circle') {
-            const radius = Math.min(centerX, centerY) * 0.8;
-            for (let i = 0; i < numParts; i++) {
-                const startAngle = (i * 2 * Math.PI) / numParts;
-                const endAngle = ((i + 1) * 2 * Math.PI) / numParts;
-
-                ctx.beginPath();
-                ctx.moveTo(centerX, centerY);
-                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-                ctx.closePath();
-                ctx.fillStyle = i % 2 === 0 ? '#A7F3D0' : '#FECACA'; // Light green / Light red
-                ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                // Draw fraction text
-                const midAngle = (startAngle + endAngle) / 2;
-                const textX = centerX + (radius / 2) * Math.cos(midAngle);
-                const textY = centerY + (radius / 2) * Math.sin(midAngle);
-                ctx.fillStyle = '#000';
-                ctx.font = 'bold 18px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(`1/${numParts}`, textX, textY);
-            }
-        } else { // Rectangle
-            const rectWidth = canvas.width * 0.8;
-            const rectHeight = canvas.height * 0.6;
-            const rectX = (canvas.width - rectWidth) / 2;
-            const rectY = (canvas.height - rectHeight) / 2;
-
-            for (let i = 0; i < numParts; i++) {
-                const partWidth = rectWidth / numParts;
-                ctx.fillStyle = i % 2 === 0 ? '#A7F3D0' : '#FECACA';
-                ctx.fillRect(rectX + i * partWidth, rectY, partWidth, rectHeight);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(rectX + i * partWidth, rectY, partWidth, rectHeight);
-
-                // Draw fraction text
-                ctx.fillStyle = '#000';
-                ctx.font = 'bold 18px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(`1/${numParts}`, rectX + i * partWidth + partWidth / 2, centerY);
-            }
-        }
-    }, [numParts, shapeType]);
-
-    useEffect(() => {
-        drawShape();
-        // MathJax is not used for canvas drawing, so no typesetPromise() here
-    }, [drawShape]);
-
-    useEffect(() => {
-        const handleResize = () => drawShape();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, [drawShape]);
-
-    return (
-        <div className="flex flex-col items-center gap-6">
-            <h2 className="text-2xl font-bold text-gray-700">ભાગ અને પૂર્ણનો પરિચય</h2>
-            <div className="instructions bg-yellow-50 border border-yellow-300 p-4 rounded-lg text-sm text-yellow-800 shadow-sm">
-                <p>અહીં તમે એક સંપૂર્ણ વસ્તુને સમાન ભાગોમાં વિભાજીત કરી શકો છો અને દરેક ભાગને અપૂર્ણાંક તરીકે જોઈ શકો છો.</p>
-                <ul className="list-disc ml-5 mt-2">
-                    <li>આકાર પસંદ કરો: વર્તુળ કે લંબચોરસ.</li>
-                    <li>ભાગોની સંખ્યા પસંદ કરો અને જુઓ કે અપૂર્ણાંક કેવી રીતે બદલાય છે.</li>
-                </ul>
+        <!-- 1. અપૂર્ણાંકનો પરિચય (Introduction to Fractions) -->
+        <div id="introFractions" class="hidden">
+            <h2 class="text-3xl font-semibold text-blue-600 mb-6">અપૂર્ણાંકનો પરિચય: પીઝાના ભાગો</h2>
+            <p class="text-gray-700 mb-4">પીઝાને કેટલા ભાગમાં વહેંચવો છે તે પસંદ કરો:</p>
+            <div class="flex justify-center space-x-4 mb-6">
+                <button class="button" onclick="createPizza(2)">2 ભાગ</button>
+                <button class="button" onclick="createPizza(3)">3 ભાગ</button>
+                <button class="button" onclick="createPizza(4)">4 ભાગ</button>
+                <button class="button" onclick="createPizza(6)">6 ભાગ</button>
+                <button class="button" onclick="createPizza(8)">8 ભાગ</button>
             </div>
-            <div className="flex gap-4 mb-4 bg-blue-50 p-3 rounded-lg shadow-inner">
-                <label className="flex items-center gap-2 text-blue-800 font-medium">
-                    <input type="radio" name="shapeType" value="circle" checked={shapeType === 'circle'} onChange={() => setShapeType('circle')} className="form-radio text-blue-600" />
-                    વર્તુળ
-                </label>
-                <label className="flex items-center gap-2 text-blue-800 font-medium">
-                    <input type="radio" name="shapeType" value="rectangle" checked={shapeType === 'rectangle'} onChange={() => setShapeType('rectangle')} className="form-radio text-blue-600" />
-                    લંબચોરસ
-                </label>
+            <div class="flex justify-center items-center relative w-64 h-64 mx-auto mb-6">
+                <svg id="pizzaSvg" viewBox="0 0 100 100" class="w-full h-full"></svg>
             </div>
-            <div className="flex items-center gap-4 bg-blue-50 p-3 rounded-lg shadow-inner">
-                <label htmlFor="numParts" className="font-semibold text-blue-800">ભાગોની સંખ્યા:</label>
-                <input
-                    type="range"
-                    id="numParts"
-                    min="2"
-                    max="10"
-                    value={numParts}
-                    onChange={(e) => setNumParts(Number(e.target.value))}
-                    className="w-48 h-2 bg-blue-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
-                <span className="font-bold text-lg text-blue-800">{numParts}</span>
+            <p class="text-gray-700 mb-4">કેટલા ભાગ પસંદ કરવા છે?</p>
+            <div id="numeratorButtons" class="flex justify-center space-x-2 flex-wrap gap-2 mb-6">
+                <!-- Numerator buttons will be added here by JS -->
             </div>
-            <canvas ref={canvasRef} className="bg-white border-2 border-blue-200 rounded-xl shadow-lg w-full max-w-2xl h-96"></canvas>
+            <div class="fraction-display" id="currentFractionDisplay"></div>
+            <button class="button mt-8" onclick="showMenu()">મુખ્ય મેનુ</button>
         </div>
-    );
-};
 
-// --- 2. Fractions in Flags Game ---
-const FractionsInFlags = ({ mathJaxReady }) => {
-    const feedbackRef = useRef(null); // Ref for feedback div
-    const flags = [
-        {
-            name: "ભારતીય ધ્વજ",
-            image: "https://upload.wikimedia.org/wikipedia/commons/7/7b/Flag_of_India.png", // Placeholder for Indian Flag
-            sections: [
-                { color: "કેસરી", fraction: "1/3" },
-                { color: "સફેદ (ચક્ર સાથે)", fraction: "1/3" },
-                { color: "લીલો", fraction: "1/3" },
-            ],
-            question: "ભારતીય ધ્વજમાં દરેક રંગનો કેટલો ભાગ છે?",
-            correctAnswer: ["1/3", "1/3", "1/3"]
-        },
-        {
-            name: "અફઘાનિસ્તાનનો ધ્વજ",
-            image: "https://upload.wikimedia.org/wikipedia/commons/9/9a/Flag_of_Afghanistan.svg", // Placeholder for Afghanistan Flag
-            sections: [
-                { color: "કાળો", fraction: "1/3" },
-                { color: "લાલ", fraction: "1/3" },
-                { color: "લીલો", fraction: "1/3" },
-            ],
-            question: "અફઘાનિસ્તાનના ધ્વજમાં દરેક રંગનો કેટલો ભાગ છે?",
-            correctAnswer: ["1/3", "1/3", "1/3"]
-        },
-        {
-            name: "મ્યાનમારનો ધ્વજ",
-            image: "https://upload.wikimedia.org/wikipedia/commons/8/8c/Flag_of_Myanmar.svg", // Placeholder for Myanmar Flag
-            sections: [
-                { color: "પીળો", fraction: "1/3" },
-                { color: "લીલો", fraction: "1/3" },
-                { color: "લાલ", fraction: "1/3" },
-            ],
-            question: "મ્યાનમારના ધ્વજમાં દરેક રંગનો કેટલો ભાગ છે?",
-            correctAnswer: ["1/3", "1/3", "1/3"]
+        <!-- 2. રાષ્ટ્રીય ધ્વજમાં અપૂર્ણાંક (Fractions in National Flags) -->
+        <div id="flagFractions" class="hidden">
+            <h2 class="text-3xl font-semibold text-blue-600 mb-6">રાષ્ટ્રીય ધ્વજમાં અપૂર્ણાંક</h2>
+            <p class="text-gray-700 mb-4">ભારતીય ધ્વજમાં દરેક રંગ કેટલા ભાગમાં છે તે ઓળખો.</p>
+            <div class="flex flex-col items-center justify-center w-64 h-40 mx-auto border-2 border-gray-400 rounded-lg overflow-hidden mb-6">
+                <!-- Indian Flag SVG/Divs -->
+                <div class="flag-stripe w-full h-1/3 bg-orange-500 flex items-center justify-center text-white font-bold text-lg">કેસરી</div>
+                <div class="flag-stripe w-full h-1/3 bg-white flex items-center justify-center relative">
+                    <!-- Ashoka Chakra (simplified SVG) -->
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#000080" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-circle">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="2" x2="12" y2="22"></line>
+                        <line x1="22" y1="12" x2="2" y2="12"></line>
+                        <line x1="18.32" y1="5.68" x2="5.68" y2="18.32"></line>
+                        <line x1="5.68" y1="5.68" x2="18.32" y2="18.32"></line>
+                        <line x1="12" y1="3.5" x2="12" y2="20.5"></line>
+                        <line x1="3.5" y1="12" x2="20.5" y2="12"></line>
+                        <line x1="17.07" y1="6.93" x2="6.93" y2="17.07"></line>
+                        <line x1="6.93" y1="6.93" x2="17.07" y2="17.07"></line>
+                        <line x1="12" y1="4.5" x2="12" y2="19.5"></line>
+                        <line x1="4.5" y1="12" x2="19.5" y2="12"></line>
+                        <line x1="16.21" y1="7.79" x2="7.79" y2="16.21"></line>
+                        <line x1="7.79" y1="7.79" x2="16.21" y2="16.21"></line>
+                    </svg>
+                </div>
+                <div class="flag-stripe w-full h-1/3 bg-green-600 flex items-center justify-center text-white font-bold text-lg">લીલો</div>
+            </div>
+            <p class="text-gray-700 mb-4">કેસરી રંગ ધ્વજના કયા ભાગમાં છે?</p>
+            <div class="flex justify-center space-x-4 mb-6">
+                <button class="button" onclick="checkFlagAnswer('1/3', 'કેસરી')">1/3</button>
+                <button class="button" onclick="checkFlagAnswer('1/2', 'કેસરી')">1/2</button>
+                <button class="button" onclick="checkFlagAnswer('1/4', 'કેસરી')">1/4</button>
+            </div>
+            <p class="text-gray-700 mb-4">લીલો રંગ ધ્વજના કયા ભાગમાં છે?</p>
+            <div class="flex justify-center space-x-4 mb-6">
+                <button class="button" onclick="checkFlagAnswer('1/3', 'લીલો')">1/3</button>
+                <button class="button" onclick="checkFlagAnswer('1/2', 'લીલો')">1/2</button>
+                <button class="button" onclick="checkFlagAnswer('1/6', 'લીલો')">1/6</button>
+            </div>
+            <button class="button mt-8" onclick="showMenu()">મુખ્ય મેનુ</button>
+        </div>
+
+        <!-- 3. વર્તુળના ભાગો (Parts of a Circle) -->
+        <div id="circleParts" class="hidden">
+            <h2 class="text-3xl font-semibold text-blue-600 mb-6">વર્તુળના ભાગો</h2>
+            <p class="text-gray-700 mb-4">વર્તુળના કેટલા ભાગ કરવા છે તે પસંદ કરો અને ભાગો પર ક્લિક કરીને અપૂર્ણાંક બનાવો.</p>
+            <div class="flex justify-center space-x-4 mb-6">
+                <button class="button" onclick="createCircle(2)">2 ભાગ</button>
+                <button class="button" onclick="createCircle(4)">4 ભાગ</button>
+                <button class="button" onclick="createCircle(8)">8 ભાગ</button>
+            </div>
+            <div class="flex justify-center items-center relative w-64 h-64 mx-auto mb-6">
+                <svg id="circleSvg" viewBox="0 0 100 100" class="w-full h-full"></svg>
+            </div>
+            <div class="fraction-display" id="currentCircleFraction"></div>
+            <button class="button mt-8" onclick="showMenu()">મુખ્ય મેનુ</button>
+        </div>
+
+        <!-- 4. ચોકલેટ અને ટોપીઓમાં અપૂર્ણાંક (Fractions in Chocolates and Hats) -->
+        <div id="chocolateHats" class="hidden">
+            <h2 class="text-3xl font-semibold text-blue-600 mb-6">ચોકલેટ અને ટોપીઓમાં અપૂર્ણાંક</h2>
+            <p class="text-gray-700 mb-4">આ ચોકલેટમાં 8 ટુકડા છે. જો તમે 1/4 ભાગ ખાઓ, તો કેટલા ટુકડા ખાધા?</p>
+            <div class="flex justify-center items-center mb-6">
+                <div class="flex flex-wrap w-64 h-24 border-2 border-brown-700 rounded-lg overflow-hidden">
+                    <!-- Chocolate segments -->
+                    <div class="w-1/4 h-1/2 bg-amber-800 border border-amber-900"></div>
+                    <div class="w-1/4 h-1/2 bg-amber-800 border border-amber-900"></div>
+                    <div class="w-1/4 h-1/2 bg-amber-800 border border-amber-900"></div>
+                    <div class="w-1/4 h-1/2 bg-amber-800 border border-amber-900"></div>
+                    <div class="w-1/4 h-1/2 bg-amber-800 border border-amber-900"></div>
+                    <div class="w-1/4 h-1/2 bg-amber-800 border border-amber-900"></div>
+                    <div class="w-1/4 h-1/2 bg-amber-800 border border-amber-900"></div>
+                    <div class="w-1/4 h-1/2 bg-amber-800 border border-amber-900"></div>
+                </div>
+            </div>
+            <div class="flex justify-center space-x-4 mb-6">
+                <button class="button" onclick="checkChocolateAnswer(2)">2 ટુકડા</button>
+                <button class="button" onclick="checkChocolateAnswer(4)">4 ટુકડા</button>
+                <button class="button" onclick="checkChocolateAnswer(1)">1 ટુકડો</button>
+            </div>
+
+            <p class="text-gray-700 mb-4 mt-8">અહીં 6 ટોપીઓ છે. જો 1/3 ટોપીઓ લાલ હોય, તો કેટલી ટોપીઓ લાલ છે?</p>
+            <div class="flex justify-center space-x-4 mb-6">
+                <!-- Hats (simple circles) -->
+                <div class="w-12 h-12 rounded-full bg-gray-400 flex items-center justify-center text-xl">🎩</div>
+                <div class="w-12 h-12 rounded-full bg-gray-400 flex items-center justify-center text-xl">🎩</div>
+                <div class="w-12 h-12 rounded-full bg-gray-400 flex items-center justify-center text-xl">🎩</div>
+                <div class="w-12 h-12 rounded-full bg-gray-400 flex items-center justify-center text-xl">🎩</div>
+                <div class="w-12 h-12 rounded-full bg-gray-400 flex items-center justify-center text-xl">🎩</div>
+                <div class="w-12 h-12 rounded-full bg-gray-400 flex items-center justify-center text-xl">🎩</div>
+            </div>
+            <div class="flex justify-center space-x-4 mb-6">
+                <button class="button" onclick="checkHatAnswer(1)">1 ટોપી</button>
+                <button class="button" onclick="checkHatAnswer(2)">2 ટોપીઓ</button>
+                <button class="button" onclick="checkHatAnswer(3)">3 ટોપીઓ</button>
+            </div>
+            <button class="button mt-8" onclick="showMenu()">મુખ્ય મેનુ</button>
+        </div>
+
+        <!-- 5. ભૌમિતિક આકારોના ભાગો (Equal Parts of Triangles and Rectangles) -->
+        <div id="geometricShapes" class="hidden">
+            <h2 class="text-3xl font-semibold text-blue-600 mb-6">ભૌમિતિક આકારોના ભાગો</h2>
+            <p class="text-gray-700 mb-4">ત્રિકોણના 3 સરખા ભાગ કરો અને એક ભાગને રંગો.</p>
+            <div class="triangle-container">
+                <svg id="triangleSvg" class="triangle-svg" viewBox="0 0 100 86.6">
+                    <!-- Equilateral triangle path -->
+                    <polygon points="50,0 0,86.6 100,86.6" fill="#f0f9ff" stroke="#3b82f6" stroke-width="2"/>
+                    <!-- Paths for 3 equal parts (example: from center to vertices) -->
+                    <path d="M50,28.87 L0,86.6 L100,86.6 Z" fill="none" stroke="#a7d9f7" stroke-width="1"/>
+                    <path d="M50,28.87 L50,86.6 L0,86.6 Z" fill="none" stroke="#a7d9f7" stroke-width="1"/>
+                    <path d="M50,28.87 L100,86.6 L50,86.6 Z" fill="none" stroke="#a7d9f7" stroke-width="1"/>
+                    <!-- Actual clickable parts will be generated by JS for better control -->
+                </svg>
+            </div>
+            <p class="text-gray-700 mb-4">ઉપરના ત્રિકોણના 3 સરખા ભાગ કરવા માટે તેના પર ક્લિક કરો. પછી એક ભાગ પર ક્લિક કરીને તેને રંગો.</p>
+            <div class="fraction-display" id="currentTriangleFraction"></div>
+            <button class="button mt-8" onclick="resetTriangle()">ફરીથી સેટ કરો</button>
+
+            <p class="text-gray-700 mb-4 mt-8">લંબચોરસના 6 સરખા ભાગ કરો અને 1/6 ભાગને રંગો.</p>
+            <div id="rectangleGrid" class="rectangle-grid">
+                <!-- Grid cells will be generated by JS -->
+            </div>
+            <div class="fraction-display" id="currentRectangleFraction"></div>
+            <button class="button mt-8" onclick="resetRectangle()">ફરીથી સેટ કરો</button>
+            <button class="button mt-8 ml-4" onclick="showMenu()">મુખ્ય મેનુ</button>
+        </div>
+
+        <!-- 6. લોભી ચોકીદારની વાર્તા (Story of the Greedy Gatekeeper) -->
+        <div id="greedyGatekeeper" class="hidden">
+            <h2 class="text-3xl font-semibold text-blue-600 mb-6">લોભી ચોકીદારની વાર્તા</h2>
+            <p class="text-gray-700 mb-4">એક રાજા હતો જેણે એક ગરીબ માણસને ઇનામ આપવાનું નક્કી કર્યું. રસ્તામાં ત્રણ ચોકીદારો હતા.</p>
+            <p class="text-gray-700 mb-4">પ્રથમ ચોકીદારે ઇનામનો $\frac{1}{2}$ ભાગ લીધો. જો ઇનામમાં 100 સોનાના સિક્કા હોય, તો કેટલા સિક્કા બાકી રહ્યા?</p>
+            <input type="number" id="gatekeeper1Answer" class="border-2 border-gray-300 rounded-lg p-2 mb-4 w-32 text-center" placeholder="જવાબ">
+            <button class="button" onclick="checkGatekeeper1()">ચકાસો</button>
+            <p id="gatekeeper1Feedback" class="text-sm mt-2"></p>
+
+            <p class="text-gray-700 mb-4 mt-6">બીજા ચોકીદારે બાકી રહેલા સિક્કાનો $\frac{1}{2}$ ભાગ લીધો. હવે કેટલા સિક્કા બાકી રહ્યા?</p>
+            <input type="number" id="gatekeeper2Answer" class="border-2 border-gray-300 rounded-lg p-2 mb-4 w-32 text-center" placeholder="જવાબ">
+            <button class="button" onclick="checkGatekeeper2()">ચકાસો</button>
+            <p id="gatekeeper2Feedback" class="text-sm mt-2"></p>
+
+            <p class="text-gray-700 mb-4 mt-6">ત્રીજા ચોકીદારે બાકી રહેલા સિક્કાનો $\frac{1}{2}$ ભાગ લીધો. હવે ગરીબ માણસ પાસે કેટલા સિક્કા રહ્યા?</p>
+            <input type="number" id="gatekeeper3Answer" class="border-2 border-gray-300 rounded-lg p-2 mb-4 w-32 text-center" placeholder="જવાબ">
+            <button class="button" onclick="checkGatekeeper3()">ચકાસો</button>
+            <p id="gatekeeper3Feedback" class="text-sm mt-2"></p>
+
+            <button class="button mt-8" onclick="showMenu()">મુખ્ય મેનુ</button>
+        </div>
+
+        <!-- 7. પેટર્ન અને અપૂર્ણાંક (Patterns and Fractions) -->
+        <div id="patternsFractions" class="hidden">
+            <h2 class="text-3xl font-semibold text-blue-600 mb-6">પેટર્ન અને અપૂર્ણાંક</h2>
+            <p class="text-gray-700 mb-4">16 ચોરસની ગ્રીડમાં 1/4 ભાગને લાલ રંગ કરો અને એક સુંદર પેટર્ન બનાવો. પછી સફેદ ભાગનો અપૂર્ણાંક શોધો.</p>
+            <div id="patternGrid" class="grid grid-cols-4 grid-rows-4 w-64 h-64 mx-auto border-2 border-gray-400 rounded-lg overflow-hidden">
+                <!-- Grid cells will be generated by JS -->
+            </div>
+            <p class="text-gray-700 mt-4">લાલ રંગીન ચોરસ: <span id="coloredSquaresCount" class="font-bold">0</span></p>
+            <p class="text-gray-700">સફેદ ચોરસ: <span id="whiteSquaresCount" class="font-bold">16</span></p>
+            <p class="text-gray-700">લાલ ભાગ: <span id="redFractionDisplay" class="font-bold">0/16</span></p>
+            <p class="text-gray-700">સફેદ ભાગ: <span id="whiteFractionDisplay" class="font-bold">16/16</span></p>
+            <button class="button mt-8" onclick="resetPatternGrid()">ફરીથી સેટ કરો</button>
+            <button class="button mt-8 ml-4" onclick="showMenu()">મુખ્ય મેનુ</button>
+        </div>
+
+        <!-- 8. શાકભાજીનું ખેતર (Vegetable Farm) -->
+        <div id="vegetableFarm" class="hidden">
+            <h2 class="text-3xl font-semibold text-blue-600 mb-6">શાકભાજીનું ખેતર</h2>
+            <p class="text-gray-700 mb-4">રામુના ખેતરમાં કઈ શાકભાજી કેટલા ભાગમાં ઉગાડવામાં આવી છે તે શોધો.</p>
+            <div id="farmGrid" class="farm-grid">
+                <!-- Farm cells will be generated by JS -->
+            </div>
+            <div class="mt-6 text-left">
+                <p class="text-gray-700">ટામેટાંનો ભાગ: <span id="tomatoFraction" class="font-bold"></span></p>
+                <p class="text-gray-700">બટાકાનો ભાગ: <span id="potatoFraction" class="font-bold"></span></p>
+                <p class="text-gray-700">ડુંગળીનો ભાગ: <span id="onionFraction" class="font-bold"></span></p>
+                <p class="text-gray-700">ગાજરનો ભાગ: <span id="carrotFraction" class="font-bold"></span></p>
+            </div>
+            <button class="button mt-8" onclick="showMenu()">મુખ્ય મેનુ</button>
+        </div>
+
+        <!-- Message Box for alerts -->
+        <div id="messageBox" class="message-box hidden">
+            <h3 id="messageBoxTitle"></h3>
+            <p id="messageBoxContent"></p>
+            <button onclick="hideMessageBox()">ઓકે</button>
+        </div>
+
+    </div>
+
+    <script>
+        // Global variables for game state
+        let currentActivity = '';
+        let pizzaDenominator = 0;
+        let pizzaSelectedSlices = 0;
+        let circleDenominator = 0;
+        let circleSelectedSegments = 0;
+        let triangleColoredParts = 0;
+        let patternColoredCount = 0;
+        const totalPatternSquares = 16;
+
+        // Function to show custom message box
+        function showCustomMessage(title, message) {
+            document.getElementById('messageBoxTitle').innerText = title;
+            document.getElementById('messageBoxContent').innerText = message;
+            document.getElementById('messageBox').classList.remove('hidden');
         }
-    ];
 
-    const [currentFlagIndex, setCurrentFlagIndex] = useState(0);
-    const [userAnswers, setUserAnswers] = useState({});
-    const [feedback, setFeedback] = useState('');
+        // Function to hide custom message box
+        function hideMessageBox() {
+            document.getElementById('messageBox').classList.add('hidden');
+        }
 
-    const currentFlag = flags[currentFlagIndex];
+        // Function to show a specific activity and hide others
+        function showActivity(activityId) {
+            // Hide all activity containers
+            document.querySelectorAll('#gameContainer > div').forEach(div => {
+                if (div.id !== 'mainMenu' && div.id !== 'messageBox') {
+                    div.classList.add('hidden');
+                }
+            });
+            // Show the selected activity
+            document.getElementById(activityId).classList.remove('hidden');
+            document.getElementById('mainMenu').classList.add('hidden');
+            currentActivity = activityId;
 
-    const handleInputChange = (color, value) => {
-        setUserAnswers(prev => ({ ...prev, [color]: value }));
-    };
+            // Initialize specific activities if needed
+            if (activityId === 'introFractions') {
+                createPizza(2); // Default to 2 parts
+            } else if (activityId === 'circleParts') {
+                createCircle(2); // Default to 2 parts
+            } else if (activityId === 'geometricShapes') {
+                renderTriangle();
+                renderRectangleGrid();
+            } else if (activityId === 'patternsFractions') {
+                renderPatternGrid();
+            } else if (activityId === 'vegetableFarm') {
+                renderVegetableFarm();
+            }
+        }
 
-    const handleSubmit = () => {
-        let allCorrect = true;
-        let newFeedback = [];
-        currentFlag.sections.forEach(section => {
-            const userAnswer = userAnswers[section.color];
-            if (userAnswer === section.fraction) {
-                newFeedback.push(`${section.color} રંગ માટે તમારો જવાબ સાચો છે!`);
+        // Function to show the main menu
+        function showMenu() {
+            document.querySelectorAll('#gameContainer > div').forEach(div => {
+                if (div.id !== 'mainMenu' && div.id !== 'messageBox') {
+                    div.classList.add('hidden');
+                }
+            });
+            document.getElementById('mainMenu').classList.remove('hidden');
+            currentActivity = '';
+        }
+
+        // --- 1. અપૂર્ણાંકનો પરિચય (Introduction to Fractions) ---
+        function createPizza(parts) {
+            pizzaDenominator = parts;
+            pizzaSelectedSlices = 0;
+            const pizzaSvg = document.getElementById('pizzaSvg');
+            pizzaSvg.innerHTML = ''; // Clear previous pizza
+
+            const radius = 50;
+            const centerX = 50;
+            const centerY = 50;
+
+            for (let i = 0; i < parts; i++) {
+                const startAngle = (360 / parts) * i;
+                const endAngle = (360 / parts) * (i + 1);
+
+                const startRad = (startAngle - 90) * Math.PI / 180;
+                const endRad = (endAngle - 90) * Math.PI / 180;
+
+                const x1 = centerX + radius * Math.cos(startRad);
+                const y1 = centerY + radius * Math.sin(startRad);
+                const x2 = centerX + radius * Math.cos(endRad);
+                const y2 = centerY + radius * Math.sin(endRad);
+
+                const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
+
+                const pathData = [
+                    `M ${centerX},${centerY}`,
+                    `L ${x1},${y1}`,
+                    `A ${radius},${radius} 0 ${largeArcFlag} 1 ${x2},${y2}`,
+                    `Z`
+                ].join(' ');
+
+                const slice = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                slice.setAttribute('d', pathData);
+                slice.classList.add('pizza-slice');
+                slice.dataset.index = i; // Store index for selection
+                slice.onclick = () => togglePizzaSlice(slice);
+                pizzaSvg.appendChild(slice);
+            }
+            updateNumeratorButtons();
+            updatePizzaFractionDisplay();
+        }
+
+        function togglePizzaSlice(slice) {
+            slice.classList.toggle('selected');
+            pizzaSelectedSlices = document.querySelectorAll('#pizzaSvg .pizza-slice.selected').length;
+            updatePizzaFractionDisplay();
+        }
+
+        function updateNumeratorButtons() {
+            const numButtonsDiv = document.getElementById('numeratorButtons');
+            numButtonsDiv.innerHTML = '';
+            for (let i = 0; i <= pizzaDenominator; i++) {
+                const button = document.createElement('button');
+                button.classList.add('button', 'px-4', 'py-2', 'text-sm');
+                button.innerText = `${i} ભાગ`;
+                button.onclick = () => selectPizzaNumerator(i);
+                numButtonsDiv.appendChild(button);
+            }
+        }
+
+        function selectPizzaNumerator(numerator) {
+            pizzaSelectedSlices = numerator;
+            const slices = document.querySelectorAll('#pizzaSvg .pizza-slice');
+            slices.forEach((slice, index) => {
+                if (index < numerator) {
+                    slice.classList.add('selected');
+                } else {
+                    slice.classList.remove('selected');
+                }
+            });
+            updatePizzaFractionDisplay();
+        }
+
+        function updatePizzaFractionDisplay() {
+            const display = document.getElementById('currentFractionDisplay');
+            if (pizzaDenominator > 0) {
+                display.innerText = `પસંદ કરેલો ભાગ: ${pizzaSelectedSlices}/${pizzaDenominator}`;
             } else {
-                const [num, den] = section.fraction.split('/').map(Number);
-                newFeedback.push(`${section.color} રંગ માટે તમારો જવાબ ખોટો છે. સાચો જવાબ ${formatFractionForMathJax(section.fraction)} (${getFractionDescription(num, den)}) છે.`);
-                allCorrect = false;
-            }
-        });
-        setFeedback(newFeedback.join('<br>'));
-    };
-
-    const handleNextFlag = () => {
-        setCurrentFlagIndex((prev) => (prev + 1) % flags.length);
-        setUserAnswers({});
-        setFeedback('');
-    };
-
-    // Use useEffect to typeset MathJax after feedback state updates
-    useEffect(() => {
-        if (mathJaxReady && feedbackRef.current && window.MathJax) {
-            window.MathJax.typesetPromise([feedbackRef.current]);
-        }
-    }, [feedback, mathJaxReady]);
-
-
-    return (
-        <div className="flex flex-col items-center gap-6">
-            <h2 className="text-2xl font-bold text-gray-700">ધ્વજમાં અપૂર્ણાંક</h2>
-            <div className="instructions bg-yellow-50 border border-yellow-300 p-4 rounded-lg text-sm text-yellow-800 shadow-sm">
-                <p>આ પ્રવૃત્તિમાં, તમે વિવિધ દેશોના ધ્વજમાં રંગોના ભાગોને અપૂર્ણાંક સ્વરૂપે ઓળખશો.</p>
-                <ul className="list-disc ml-5 mt-2">
-                    <li>ધ્વજ જુઓ અને દરેક રંગનો કેટલો ભાગ છે તેનું અનુમાન કરો.</li>
-                    <li>તમારા જવાબો દાખલ કરો અને "જવાબ તપાસો" પર ક્લિક કરો.</li>
-                </ul>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-800">{currentFlag.name}</h3>
-            <img src={currentFlag.image} alt={currentFlag.name} className="w-full max-w-lg h-auto rounded-lg shadow-md border border-gray-300" onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/400x250/cccccc/000000?text=${currentFlag.name}`; }} />
-            <p className="text-lg text-gray-700">{currentFlag.question}</p>
-            <div className="flex flex-col gap-3 w-full max-w-md">
-                {currentFlag.sections.map((section, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                        <label className="w-24 text-gray-700">{section.color}:</label>
-                        <input
-                            type="text"
-                            value={userAnswers[section.color] || ''}
-                            onChange={(e) => handleInputChange(section.color, e.target.value)}
-                            placeholder="દા.ત. 1/3"
-                            className="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                ))}
-            </div>
-            <div className="flex gap-4">
-                <button onClick={handleSubmit} className="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105">જવાબ તપાસો</button>
-                <button onClick={handleNextFlag} className="px-5 py-2 bg-green-600 text-white rounded-lg font-semibold shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105">આગલો ધ્વજ</button>
-            </div>
-            {feedback && (
-                <div ref={feedbackRef} className="bg-blue-100 px-4 py-2 rounded-md shadow-sm text-gray-700 font-medium border border-blue-200">
-                </div>
-            )}
-        </div>
-    );
-};
-
-// --- 3. Chocolate Distribution Game ---
-const ChocolateDistribution = ({ mathJaxReady }) => {
-    const feedbackRef = useRef(null); // Ref for feedback div
-    const totalPieces = 12; // Let's assume a chocolate bar has 12 pieces for easy division
-    const [chocolatePieces, setChocolatePieces] = useState(Array(totalPieces).fill('white')); // 'white', 'red', 'blue', 'green'
-    const [feedback, setFeedback] = useState('');
-
-    const friends = [
-        { name: "રાજી", fraction: "1/4", color: "red" },
-        { name: "સુગાથા", fraction: "1/3", color: "blue" },
-        { name: "શીલા", fraction: "1/6", color: "green" },
-    ];
-
-    const calculatePieces = (fractionStr) => {
-        const [numerator, denominator] = fractionStr.split('/').map(Number);
-        return (totalPieces * numerator) / denominator;
-    };
-
-    const simplifyFraction = (numerator, denominator) => {
-        if (numerator === 0) return "0/1";
-        const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
-        const commonDivisor = gcd(numerator, denominator);
-        return `${numerator / commonDivisor}/${denominator / commonDivisor}`;
-    };
-
-    const handleDistribute = () => {
-        let newPieces = Array(totalPieces).fill('white');
-        let distributedCount = 0;
-
-        friends.forEach(friend => {
-            const piecesToGive = calculatePieces(friend.fraction);
-            if (!Number.isInteger(piecesToGive) || piecesToGive < 0) {
-                setFeedback(`ગણતરીમાં ભૂલ: ${friend.name} માટે અપૂર્ણાંક યોગ્ય નથી.`);
-                return;
-            }
-            let count = 0;
-            for (let i = 0; i < totalPieces; i++) {
-                if (newPieces[i] === 'white' && count < piecesToGive) {
-                    newPieces[i] = friend.color;
-                    count++;
-                    distributedCount++;
-                }
-            }
-        });
-
-        setChocolatePieces(newPieces);
-
-        const manjuAte = totalPieces - distributedCount;
-        const simplifiedManjuFraction = simplifyFraction(manjuAte, totalPieces);
-        const [manjuNum, manjuDen] = simplifiedManjuFraction.split('/').map(Number);
-
-
-        setFeedback(`
-            ચોકલેટ વહેંચાઈ ગઈ છે!<br>
-            રાજીને ${calculatePieces(friends[0].fraction)} ટુકડા મળ્યા.<br>
-            સુગાથાને ${calculatePieces(friends[1].fraction)} ટુકડા મળ્યા.<br>
-            શીલાને ${calculatePieces(friends[2].fraction)} ટુકડા મળ્યા.<br>
-            મંજુએ ${manjuAte} ટુકડા ખાધા, જે કુલ ચોકલેટનો ${formatFractionForMathJax(simplifiedManjuFraction)} (${getFractionDescription(manjuNum, manjuDen)}) ભાગ છે.
-        `);
-    };
-
-    const handleReset = () => {
-        setChocolatePieces(Array(totalPieces).fill('white'));
-        setFeedback('');
-    };
-
-    // Use useEffect to typeset MathJax after feedback state updates
-    useEffect(() => {
-        if (mathJaxReady && feedbackRef.current && window.MathJax) {
-            window.MathJax.typesetPromise([feedbackRef.current]);
-        }
-    }, [feedback, mathJaxReady]);
-
-    return (
-        <div className="flex flex-col items-center gap-6">
-            <h2 className="text-2xl font-bold text-gray-700">ચોકલેટ વહેંચણી</h2>
-            <div className="instructions bg-yellow-50 border border-yellow-300 p-4 rounded-lg text-sm text-yellow-800 shadow-sm">
-                <p>મંજુ પાસે 12 ટુકડાની એક ચોકલેટ હતી. તેણે તેના મિત્રોને ચોક્કસ ભાગ આપ્યો. બાકીનો ભાગ તે ખાઈ ગઈ.</p>
-                <ul className="list-disc ml-5 mt-2">
-                    <li>રાજીને ચોથો ભાગ (${formatFractionForMathJax("1/4")}$)</li>
-                    <li>સુગાથાને ત્રીજો ભાગ (${formatFractionForMathJax("1/3")}$)</li>
-                    <li>શીલાને છઠ્ઠો ભાગ (${formatFractionForMathJax("1/6")}$)</li>
-                    <li>"વહેંચણી કરો" બટન પર ક્લિક કરો અને જુઓ કે દરેકને કેટલા ટુકડા મળે છે અને મંજુએ કેટલા ખાધા.</li>
-                </ul>
-            </div>
-            <div className="grid grid-cols-4 gap-2 border-2 border-gray-300 p-2 rounded-lg bg-gray-100 shadow-inner">
-                {chocolatePieces.map((color, index) => (
-                    <div key={index} className={`w-16 h-16 rounded-md shadow-sm border border-gray-200`} style={{ backgroundColor: color }}></div>
-                ))}
-            </div>
-            <div className="flex gap-4">
-                <button onClick={handleDistribute} className="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105">વહેંચણી કરો</button>
-                <button onClick={handleReset} className="px-5 py-2 bg-red-600 text-white rounded-lg font-semibold shadow-md hover:bg-red-700 transition-all duration-200 transform hover:scale-105">રીસેટ કરો</button>
-            </div>
-            {feedback && (
-                <div ref={feedbackRef} className="bg-blue-100 px-4 py-2 rounded-md shadow-sm text-gray-700 font-medium border border-blue-200">
-                </div>
-            )}
-        </div>
-    );
-};
-
-// --- 4. Coloring Hats Game ---
-const ColoringHats = ({ mathJaxReady }) => {
-    const feedbackRef = useRef(null); // Ref for feedback div
-    const totalHats = 15; // A number easily divisible by common denominators (3, 5)
-    const [hats, setHats] = useState(Array(totalHats).fill('white'));
-    const [feedback, setFeedback] = useState('');
-
-    const simplifyFraction = (numerator, denominator) => {
-        if (numerator === 0) return "0/1";
-        const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
-        const commonDivisor = gcd(numerator, denominator);
-        return `${numerator / commonDivisor}/${denominator / commonDivisor}`;
-    };
-
-    const colorHats = () => {
-        const newHats = Array(totalHats).fill('white');
-
-        // Color 1/3 red
-        const redHatsCount = Math.floor(totalHats / 3);
-        for (let i = 0; i < redHatsCount; i++) {
-            newHats[i] = 'red';
-        }
-
-        // Color 3/5 blue (from remaining or overall? Let's assume overall for simplicity)
-        // To avoid overlapping, we'll pick from the remaining white hats.
-        const blueHatsCount = Math.floor(totalHats * 3 / 5);
-        let blueCount = 0;
-        for (let i = 0; i < totalHats && blueCount < blueHatsCount; i++) {
-            if (newHats[i] === 'white') {
-                newHats[i] = 'blue';
-                blueCount++;
+                display.innerText = '';
             }
         }
-        setHats(newHats);
 
-        const uncoloredHats = newHats.filter(hat => hat === 'white').length;
+        // --- 2. રાષ્ટ્રીય ધ્વજમાં અપૂર્ણાંક (Fractions in National Flags) ---
+        function checkFlagAnswer(selectedFraction, color) {
+            let correctFraction = '';
+            if (color === 'કેસરી') {
+                correctFraction = '1/3';
+            } else if (color === 'લીલો') {
+                correctFraction = '1/3';
+            }
 
-        setFeedback(`
-            ટોપીઓમાં રંગ પૂરાઈ ગયો છે!<br>
-            લાલ ટોપીઓ: ${redHatsCount} (${formatFractionForMathJax(simplifyFraction(redHatsCount, totalHats))})<br>
-            વાદળી ટોપીઓ: ${blueHatsCount} (${formatFractionForMathJax(simplifyFraction(blueHatsCount, totalHats))})<br>
-            રંગ વગરની ટોપીઓ: ${uncoloredHats} (${formatFractionForMathJax(simplifyFraction(uncoloredHats, totalHats))})
-        `);
-    };
-
-    const handleReset = () => {
-        setHats(Array(totalHats).fill('white'));
-        setFeedback('');
-    };
-
-    // Use useEffect to typeset MathJax after feedback state updates
-    useEffect(() => {
-        if (mathJaxReady && feedbackRef.current && window.MathJax) {
-            window.MathJax.typesetPromise([feedbackRef.current]);
-        }
-    }, [feedback, mathJaxReady]);
-
-    return (
-        <div className="flex flex-col items-center gap-6">
-            <h2 className="text-2xl font-bold text-gray-700">ટોપીઓમાં રંગ પૂરો</h2>
-            <div className="instructions bg-yellow-50 border border-yellow-300 p-4 rounded-lg text-sm text-yellow-800 shadow-sm">
-                <p>આ પ્રવૃત્તિમાં, તમે ટોપીઓના સંગ્રહના ચોક્કસ અપૂર્ણાંક ભાગમાં રંગ પૂરીને અપૂર્ણાંકને સમજી શકો છો.</p>
-                <ul className="list-disc ml-5 mt-2">
-                    <li>કુલ ટોપીઓ: {totalHats}</li>
-                    <li>${formatFractionForMathJax("1/3")}$ (${getFractionDescription(1, 3)}) ટોપીઓમાં લાલ રંગ પૂરો.</li>
-                    <li>${formatFractionForMathJax("3/5")}$ (${getFractionDescription(3, 5)}) ટોપીઓમાં વાદળી રંગ પૂરો.</li>
-                    <li>"રંગ પૂરો" બટન પર ક્લિક કરો અને પરિણામ જુઓ.</li>
-                </ul>
-            </div>
-            <div className="grid grid-cols-5 gap-3 bg-gray-100 p-3 rounded-xl shadow-inner">
-                {hats.map((color, index) => (
-                    <div key={index} className="w-20 h-20 flex items-center justify-center rounded-full shadow-md border border-gray-200" style={{ backgroundColor: color }}>
-                        <span role="img" aria-label="hat" className="text-4xl">🎩</span>
-                    </div>
-                ))}
-            </div>
-            <div className="flex gap-4">
-                <button onClick={colorHats} className="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105">રંગ પૂરો</button>
-                <button onClick={handleReset} className="px-5 py-2 bg-red-600 text-white rounded-lg font-semibold shadow-md hover:bg-red-700 transition-all duration-200 transform hover:scale-105">રીસેટ કરો</button>
-            </div>
-            {feedback && (
-                <div ref={feedbackRef} className="bg-blue-100 px-4 py-2 rounded-md shadow-sm text-gray-700 font-medium border border-blue-200">
-                </div>
-            )}
-        </div>
-    );
-};
-
-// --- 5. Equal Parts of Shapes Game ---
-const EqualPartsOfShapes = () => {
-    const canvasRef = useRef(null);
-    const [shapeType, setShapeType] = useState('rectangle'); // 'rectangle' or 'triangle'
-    const [numDivisions, setNumDivisions] = useState(2);
-    const [lines, setLines] = useState([]); // Stores line segments for drawing
-    const [feedback, setFeedback] = useState('');
-    const [isDrawing, setIsDrawing] = useState(false);
-    const [startPoint, setStartPoint] = useState(null);
-
-    const drawShapeAndLines = useCallback(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-
-        const mainShape = {};
-        if (shapeType === 'rectangle') {
-            mainShape.x = canvas.width * 0.2;
-            mainShape.y = canvas.height * 0.2;
-            mainShape.width = canvas.width * 0.6;
-            mainShape.height = canvas.height * 0.6;
-            ctx.strokeRect(mainShape.x, mainShape.y, mainShape.width, mainShape.height);
-        } else { // Triangle
-            mainShape.p1 = { x: canvas.width / 2, y: canvas.height * 0.2 };
-            mainShape.p2 = { x: canvas.width * 0.8, y: canvas.height * 0.8 };
-            mainShape.p3 = { x: canvas.width * 0.2, y: canvas.height * 0.8 };
-            ctx.beginPath();
-            ctx.moveTo(mainShape.p1.x, mainShape.p1.y);
-            ctx.lineTo(mainShape.p2.x, mainShape.p2.y);
-            ctx.lineTo(mainShape.p3.x, mainShape.p3.y);
-            ctx.closePath();
-            ctx.stroke();
-        }
-
-        // Draw user-drawn lines
-        ctx.strokeStyle = '#ef4444'; // Red for user lines
-        ctx.lineWidth = 2;
-        lines.forEach(line => {
-            ctx.beginPath();
-            ctx.moveTo(line.start.x, line.start.y);
-            ctx.lineTo(line.end.x, line.end.y);
-            ctx.stroke();
-        });
-
-        // Simple check for equal parts (visual inspection for now)
-        // More complex logic would involve calculating areas of sub-polygons
-        if (lines.length === numDivisions - 1) { // If enough lines are drawn
-            setFeedback("તમે પૂરતી રેખાઓ દોરી છે. હવે તપાસો કે ભાગો સમાન છે કે નહીં!");
-        } else if (lines.length > 0) {
-            setFeedback(`વધુ ${numDivisions - 1 - lines.length} રેખાઓ દોરો.`);
-        } else {
-            setFeedback(`આકારને ${numDivisions} સમાન ભાગોમાં વિભાજીત કરવા માટે રેખાઓ દોરો.`);
-        }
-
-    }, [shapeType, numDivisions, lines]);
-
-    useEffect(() => {
-        drawShapeAndLines();
-    }, [drawShapeAndLines]);
-
-    const handleMouseDown = (e) => {
-        if (lines.length >= numDivisions - 1) return; // Stop drawing if enough lines
-
-        const canvas = canvasRef.current;
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        setIsDrawing(true);
-        setStartPoint({ x: mouseX, y: mouseY });
-    };
-
-    const handleMouseMove = (e) => {
-        if (!isDrawing) return;
-        const canvas = canvasRef.current;
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        // Temporarily draw current line segment
-        drawShapeAndLines(); // Redraw base shape and existing lines
-        const ctx = canvas.getContext('2d');
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(startPoint.x, startPoint.y);
-        ctx.lineTo(mouseX, mouseY);
-        ctx.stroke();
-    };
-
-    const handleMouseUp = (e) => {
-        if (!isDrawing) return;
-        setIsDrawing(false);
-
-        const canvas = canvasRef.current;
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        setLines(prevLines => [...prevLines, { start: startPoint, end: { x: mouseX, y: mouseY } }]);
-        setStartPoint(null);
-    };
-
-    const handleReset = () => {
-        setLines([]);
-        setFeedback('');
-        setIsDrawing(false);
-        setStartPoint(null);
-    };
-
-    useEffect(() => {
-        const handleResize = () => drawShapeAndLines();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, [drawShapeAndLines]);
-
-    return (
-        <div className="flex flex-col items-center gap-6">
-            <h2 className="text-2xl font-bold text-gray-700">આકારોના સમાન ભાગો</h2>
-            <div className="instructions bg-yellow-50 border border-yellow-300 p-4 rounded-lg text-sm text-yellow-800 shadow-sm">
-                <p>આ પ્રવૃત્તિમાં, તમે વિવિધ ભૌમિતિક આકારોને સમાન ભાગોમાં વિભાજીત કરવાનો પ્રયાસ કરશો.</p>
-                <ul className="list-disc ml-5 mt-2">
-                    <li>આકાર (લંબચોરસ કે ત્રિકોણ) અને ભાગોની સંખ્યા પસંદ કરો.</li>
-                    <li>કેનવાસ પર માઉસ ક્લિક કરીને અને ખેંચીને રેખાઓ દોરો જેથી આકાર સમાન ભાગોમાં વહેંચાઈ જાય.</li>
-                    <li>નોંધ: આ પ્રવૃત્તિમાં, ભાગો સમાન છે કે નહીં તે તમારે જાતે જ તપાસવાનું છે.</li>
-                </ul>
-            </div>
-            <div className="flex gap-4 mb-4 bg-blue-50 p-3 rounded-lg shadow-inner">
-                <label className="flex items-center gap-2 text-blue-800 font-medium">
-                    <input type="radio" name="shapeDivType" value="rectangle" checked={shapeType === 'rectangle'} onChange={() => { setShapeType('rectangle'); handleReset(); }} />
-                    લંબચોરસ
-                </label>
-                <label className="flex items-center gap-2 text-blue-800 font-medium">
-                    <input type="radio" name="shapeDivType" value="triangle" checked={shapeType === 'triangle'} onChange={() => { setShapeType('triangle'); handleReset(); }} />
-                    ત્રિકોણ
-                </label>
-            </div>
-            <div className="flex items-center gap-4 bg-blue-50 p-3 rounded-lg shadow-inner">
-                <label htmlFor="numDivisions" className="font-semibold text-blue-800">ભાગોની સંખ્યા:</label>
-                <input
-                    type="range"
-                    id="numDivisions"
-                    min="2"
-                    max="5"
-                    value={numDivisions}
-                    onChange={(e) => { setNumDivisions(Number(e.target.value)); handleReset(); }}
-                    className="w-48 h-2 bg-blue-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
-                <span className="font-bold text-lg">{numDivisions}</span>
-            </div>
-            <canvas
-                ref={canvasRef}
-                className="bg-white border-2 border-blue-200 rounded-xl shadow-lg w-full max-w-2xl h-96 cursor-crosshair"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp} // Stop drawing if mouse leaves canvas
-            ></canvas>
-            <div className="flex gap-4">
-                <button onClick={handleReset} className="px-5 py-2 bg-red-600 text-white rounded-lg font-semibold shadow-md hover:bg-red-700 transition-all duration-200 transform hover:scale-105">રીસેટ કરો</button>
-            </div>
-            {feedback && (
-                <div className="bg-blue-100 px-4 py-2 rounded-md shadow-sm text-gray-700 font-medium border border-blue-200">
-                    {feedback}
-                </div>
-            )}
-        </div>
-    );
-};
-
-
-// --- 6. Patterns and Fractions Game ---
-const PatternsAndFractions = ({ mathJaxReady }) => {
-    const feedbackRef = useRef(null); // Ref for feedback div
-    const gridSize = 4; // 4x4 grid = 16 squares
-    const totalSquares = gridSize * gridSize;
-    const [coloredSquares, setColoredSquares] = useState(Array(totalSquares).fill('white'));
-    const [feedback, setFeedback] = useState('');
-
-    const patterns = [
-        {
-            description: `$\\frac{2}{8}$ (${getFractionDescription(2, 8)}) લાલ, $\\frac{1}{2}$ (${getFractionDescription(1, 2)}) પીળો, $\\frac{1}{4}$ (${getFractionDescription(1, 4)}) લીલો`,
-            fractions: { red: "2/8", yellow: "1/2", green: "1/4" }
-        },
-        {
-            description: `$\\frac{3}{16}$ (${getFractionDescription(3, 16)}) વાદળી, $\\frac{5}{16}$ (${getFractionDescription(5, 16)}) પીળો, બાકીનો સફેદ`,
-            fractions: { blue: "3/16", yellow: "5/16" }
-        },
-    ];
-
-    const [currentPatternIndex, setCurrentPatternIndex] = useState(0);
-
-    const calculateSquaresToColor = (fractionStr) => {
-        const [numerator, denominator] = fractionStr.split('/').map(Number);
-        return (totalSquares * numerator) / denominator;
-    };
-
-    const simplifyFraction = (numerator, denominator) => {
-        if (numerator === 0) return "0/1";
-        const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
-        const commonDivisor = gcd(numerator, denominator);
-        return `${numerator / commonDivisor}/${denominator / commonDivisor}`;
-    };
-
-    const applyPattern = useCallback(() => {
-        const newSquares = Array(totalSquares).fill('white');
-        const currentPattern = patterns[currentPatternIndex];
-
-        // Shuffle indices to distribute colors somewhat randomly
-        const indices = Array.from({ length: totalSquares }, (_, i) => i);
-        for (let i = indices.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [indices[i], indices[j]] = [indices[j], indices[i]];
-        }
-
-        let coloredCount = 0;
-        for (const color in currentPattern.fractions) {
-            const count = calculateSquaresToColor(currentPattern.fractions[color]);
-            let currentColored = 0;
-            for (let i = 0; i < totalSquares && currentColored < count; i++) {
-                const idx = indices[i]; // Use shuffled index
-                if (newSquares[idx] === 'white') {
-                    newSquares[idx] = color;
-                    currentColored++;
-                    coloredCount++;
-                }
+            if (selectedFraction === correctFraction) {
+                showCustomMessage('સાચો જવાબ!', `સરસ! ભારતીય ધ્વજમાં ${color} રંગ ${correctFraction} ભાગમાં છે.`);
+            } else {
+                showCustomMessage('ખોટો જવાબ', `ફરી પ્રયાસ કરો. ${color} રંગનો સાચો ભાગ ${correctFraction} છે.`);
             }
         }
-        setColoredSquares(newSquares);
 
-        const whiteSquares = totalSquares - coloredCount;
-        setFeedback(`
-            પેટર્ન લાગુ થઈ ગઈ છે!<br>
-            સફેદ ભાગ: ${formatFractionForMathJax(simplifyFraction(whiteSquares, totalSquares))} (${getFractionDescription(whiteSquares, totalSquares)})
-        `);
-    }, [currentPatternIndex]);
+        // --- 3. વર્તુળના ભાગો (Parts of a Circle) ---
+        function createCircle(parts) {
+            circleDenominator = parts;
+            circleSelectedSegments = 0;
+            const circleSvg = document.getElementById('circleSvg');
+            circleSvg.innerHTML = ''; // Clear previous circle
 
-    useEffect(() => {
-        applyPattern();
-    }, [applyPattern]);
+            const radius = 50;
+            const centerX = 50;
+            const centerY = 50;
 
-    const handleNextPattern = () => {
-        setCurrentPatternIndex((prev) => (prev + 1) % patterns.length);
-        setFeedback('');
-    };
+            for (let i = 0; i < parts; i++) {
+                const startAngle = (360 / parts) * i;
+                const endAngle = (360 / parts) * (i + 1);
 
-    // Use useEffect to typeset MathJax after feedback state updates
-    useEffect(() => {
-        if (mathJaxReady && feedbackRef.current && window.MathJax) {
-            window.MathJax.typesetPromise([feedbackRef.current]);
+                const startRad = (startAngle - 90) * Math.PI / 180;
+                const endRad = (endAngle - 90) * Math.PI / 180;
+
+                const x1 = centerX + radius * Math.cos(startRad);
+                const y1 = centerY + radius * Math.sin(startRad);
+                const x2 = centerX + radius * Math.cos(endRad);
+                const y2 = centerY + radius * Math.sin(endRad);
+
+                const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
+
+                const pathData = [
+                    `M ${centerX},${centerY}`,
+                    `L ${x1},${y1}`,
+                    `A ${radius},${radius} 0 ${largeArcFlag} 1 ${x2},${y2}`,
+                    `Z`
+                ].join(' ');
+
+                const segment = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                segment.setAttribute('d', pathData);
+                segment.classList.add('pizza-slice'); // Reusing pizza-slice class for styling
+                segment.dataset.index = i;
+                segment.onclick = () => toggleCircleSegment(segment);
+                circleSvg.appendChild(segment);
+            }
+            updateCircleFractionDisplay();
         }
-    }, [feedback, mathJaxReady]);
 
-
-    return (
-        <div className="flex flex-col items-center gap-6">
-            <h2 className="text-2xl font-bold text-gray-700">પેટર્ન અને અપૂર્ણાંક</h2>
-            <div className="instructions bg-yellow-50 border border-yellow-300 p-4 rounded-lg text-sm text-yellow-800 shadow-sm">
-                <p>આ પ્રવૃત્તિમાં, તમે ગ્રીડ પર આપેલ અપૂર્ણાંક મુજબ ચોરસમાં રંગ પૂરીને પેટર્ન બનાવશો.</p>
-                <ul className="list-disc ml-5 mt-2">
-                    <li>આપેલ અપૂર્ણાંક મુજબ ચોરસમાં રંગ પૂરો.</li>
-                    <li>"પેટર્ન લાગુ કરો" બટન પર ક્લિક કરો.</li>
-                    <li>રંગીન અને સફેદ ભાગોને અપૂર્ણાંક સ્વરૂપે જુઓ.</li>
-                </ul>
-            </div>
-            <div className="text-lg font-semibold text-gray-800" dangerouslySetInnerHTML={{ __html: patterns[currentPatternIndex].description }}>
-            </div>
-            <div className="grid bg-gray-100 p-3 rounded-xl shadow-inner" style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)`, gap: '4px' }}>
-                {coloredSquares.map((color, index) => (
-                    <div key={index} className="w-16 h-16 border border-gray-300 rounded-sm" style={{ backgroundColor: color }}></div>
-                ))}
-            </div>
-            <div className="flex gap-4">
-                <button onClick={applyPattern} className="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105">પેટર્ન લાગુ કરો</button>
-                <button onClick={handleNextPattern} className="px-5 py-2 bg-green-600 text-white rounded-lg font-semibold shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105">આગલી પેટર્ન</button>
-            </div>
-            {feedback && (
-                <div ref={feedbackRef} className="bg-blue-100 px-4 py-2 rounded-md shadow-sm text-gray-700 font-medium border border-blue-200">
-                </div>
-            )}
-        </div>
-    );
-};
-
-// --- 7. Ramu's Vegetable Farm Game ---
-const RamusFarm = ({ mathJaxReady }) => {
-    const feedbackRef = useRef(null); // Ref for feedback div
-    const farmGridSize = 3; // 3x3 grid
-    const totalFarmSections = farmGridSize * farmGridSize; // 9 sections
-    const [farmSections, setFarmSections] = useState(Array(totalFarmSections).fill('empty')); // 'empty', 'chilli', 'potato', 'brinjal', 'spinach', 'tomato'
-    const [feedback, setFeedback] = useState('');
-
-    const vegetableMap = {
-        0: 'chilli', 1: 'potato', 2: 'brinjal',
-        3: 'brinjal', 4: 'tomato', 5: 'spinach',
-        6: 'tomato', 7: 'potato', 8: 'tomato'
-    };
-
-    const vegetableColors = {
-        chilli: '#22c55e', // Green
-        potato: '#d97706', // Orange
-        brinjal: '#8b5cf6', // Purple
-        spinach: '#16a34a', // Dark Green
-        tomato: '#ef4444', // Red
-        empty: '#f3f4f6' // Light gray
-    };
-
-    const vegetableNames = {
-        chilli: 'મરચાં',
-        potato: 'બટાકા',
-        brinjal: 'રીંગણ',
-        spinach: 'પાલક',
-        tomato: 'ટમેટાં'
-    };
-
-    useEffect(() => {
-        const initialFarm = Array(totalFarmSections).fill('empty');
-        for (let i = 0; i < totalFarmSections; i++) {
-            initialFarm[i] = vegetableMap[i];
+        function toggleCircleSegment(segment) {
+            segment.classList.toggle('selected');
+            circleSelectedSegments = document.querySelectorAll('#circleSvg .pizza-slice.selected').length;
+            updateCircleFractionDisplay();
         }
-        setFarmSections(initialFarm);
-    }, []);
 
-    const simplifyFraction = (numerator, denominator) => {
-        if (numerator === 0) return "0/1";
-        const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
-        const commonDivisor = gcd(numerator, denominator);
-        return `${numerator / commonDivisor}/${denominator / commonDivisor}`;
-    };
+        function updateCircleFractionDisplay() {
+            const display = document.getElementById('currentCircleFraction');
+            if (circleDenominator > 0) {
+                display.innerText = `પસંદ કરેલો ભાગ: ${circleSelectedSegments}/${circleDenominator}`;
+            } else {
+                display.innerText = '';
+            }
+        }
 
-    const analyzeFarm = () => {
-        const counts = {};
-        farmSections.forEach(veg => {
-            counts[veg] = (counts[veg] || 0) + 1;
+        // --- 4. ચોકલેટ અને ટોપીઓમાં અપૂર્ણાંક (Fractions in Chocolates and Hats) ---
+        function checkChocolateAnswer(answer) {
+            // Chocolate has 8 pieces. 1/4 of 8 is (1/4) * 8 = 2.
+            if (answer === 2) {
+                showCustomMessage('સાચો જવાબ!', 'ખૂબ સરસ! તમે 2 ટુકડા ખાધા.');
+            } else {
+                showCustomMessage('ખોટો જવાબ', 'ફરી પ્રયાસ કરો. 1/4 ભાગ એટલે 2 ટુકડા.');
+            }
+        }
+
+        function checkHatAnswer(answer) {
+            // There are 6 hats. 1/3 of 6 is (1/3) * 6 = 2.
+            if (answer === 2) {
+                showCustomMessage('સાચો જવાબ!', 'બરાબર! 2 ટોપીઓ લાલ છે.');
+            } else {
+                showCustomMessage('ખોટો જવાબ', 'ફરી પ્રયાસ કરો. 1/3 ભાગ એટલે 2 ટોપીઓ.');
+            }
+        }
+
+        // --- 5. ભૌમિતિક આકારોના ભાગો (Equal Parts of Triangles and Rectangles) ---
+        function renderTriangle() {
+            const triangleSvg = document.getElementById('triangleSvg');
+            triangleSvg.innerHTML = ''; // Clear previous content
+
+            // Base triangle (equilateral for simplicity, 100x86.6)
+            const baseTrianglePath = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            baseTrianglePath.setAttribute('points', '50,0 0,86.6 100,86.6');
+            baseTrianglePath.setAttribute('fill', '#f0f9ff');
+            baseTrianglePath.setAttribute('stroke', '#3b82f6');
+            baseTrianglePath.setAttribute('stroke-width', '2');
+            triangleSvg.appendChild(baseTrianglePath);
+
+            // Create 3 equal parts by drawing lines from centroid to midpoints of sides
+            // Centroid of (x1,y1), (x2,y2), (x3,y3) is ((x1+x2+x3)/3, (y1+y2+y3)/3)
+            // Vertices: A(50,0), B(0,86.6), C(100,86.6)
+            const centroidX = (50 + 0 + 100) / 3; // 50
+            const centroidY = (0 + 86.6 + 86.6) / 3; // 57.73
+
+            // Midpoints of sides
+            const midABX = (50 + 0) / 2; // 25
+            const midABY = (0 + 86.6) / 2; // 43.3
+            const midBCX = (0 + 100) / 2; // 50
+            const midBCY = (86.6 + 86.6) / 2; // 86.6
+            const midCAX = (100 + 50) / 2; // 75
+            const midCAY = (86.6 + 0) / 2; // 43.3
+
+            // Define paths for 3 smaller triangles (from centroid to two vertices)
+            const partsData = [
+                // Part 1 (top)
+                `M${centroidX},${centroidY} L50,0 L0,86.6 Z`, // This is not correct for 3 equal parts from centroid
+                // Correct way for 3 equal parts: connect centroid to vertices
+                // Part 1: Centroid, A, B
+                `M${centroidX},${centroidY} L50,0 L0,86.6 Z`,
+                // Part 2: Centroid, B, C
+                `M${centroidX},${centroidY} L0,86.6 L100,86.6 Z`,
+                // Part 3: Centroid, C, A
+                `M${centroidX},${centroidY} L100,86.6 L50,0 Z`
+            ];
+
+            // For 3 equal parts of a triangle, it's usually done by connecting the centroid to the midpoints of the sides, or simply by dividing into 3 smaller triangles from a common vertex.
+            // Let's simplify and make 3 vertical strips for a rectangle-like division for visual clarity for kids, or use a common vertex.
+            // A simpler way for a triangle to be divided into 3 equal parts for kids is often by dividing it into 3 smaller triangles from one vertex to two points on the opposite side.
+            // Or, by connecting the centroid to each vertex, which creates 3 triangles of equal area.
+
+            // Let's use the centroid method, but make sure the paths are distinct and clickable.
+            // Path 1: Centroid to (50,0) (top vertex) to (0,86.6) (bottom left)
+            const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            path1.setAttribute('points', `${centroidX},${centroidY} 50,0 0,86.6`);
+            path1.classList.add('triangle-part');
+            path1.onclick = () => toggleTrianglePart(path1);
+            triangleSvg.appendChild(path1);
+
+            // Path 2: Centroid to (0,86.6) (bottom left) to (100,86.6) (bottom right)
+            const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            path2.setAttribute('points', `${centroidX},${centroidY} 0,86.6 100,86.6`);
+            path2.classList.add('triangle-part');
+            path2.onclick = () => toggleTrianglePart(path2);
+            triangleSvg.appendChild(path2);
+
+            // Path 3: Centroid to (100,86.6) (bottom right) to (50,0) (top vertex)
+            const path3 = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            path3.setAttribute('points', `${centroidX},${centroidY} 100,86.6 50,0`);
+            path3.classList.add('triangle-part');
+            path3.onclick = () => toggleTrianglePart(path3);
+            triangleSvg.appendChild(path3);
+
+            // Add lines from centroid to vertices to make divisions visible
+            const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line1.setAttribute('x1', centroidX); line1.setAttribute('y1', centroidY);
+            line1.setAttribute('x2', 50); line1.setAttribute('y2', 0);
+            line1.setAttribute('stroke', '#a7d9f7'); line1.setAttribute('stroke-width', '1');
+            triangleSvg.appendChild(line1);
+
+            const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line2.setAttribute('x1', centroidX); line2.setAttribute('y1', centroidY);
+            line2.setAttribute('x2', 0); line2.setAttribute('y2', 86.6);
+            line2.setAttribute('stroke', '#a7d9f7'); line2.setAttribute('stroke-width', '1');
+            triangleSvg.appendChild(line2);
+
+            const line3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line3.setAttribute('x1', centroidX); line3.setAttribute('y1', centroidY);
+            line3.setAttribute('x2', 100); line3.setAttribute('y2', 86.6);
+            line3.setAttribute('stroke', '#a7d9f7'); line3.setAttribute('stroke-width', '1');
+            triangleSvg.appendChild(line3);
+
+            triangleColoredParts = 0;
+            updateTriangleFractionDisplay();
+        }
+
+        function toggleTrianglePart(part) {
+            part.classList.toggle('colored');
+            triangleColoredParts = document.querySelectorAll('#triangleSvg .triangle-part.colored').length;
+            updateTriangleFractionDisplay();
+        }
+
+        function updateTriangleFractionDisplay() {
+            const display = document.getElementById('currentTriangleFraction');
+            display.innerText = `રંગીન ભાગ: ${triangleColoredParts}/3`;
+        }
+
+        function resetTriangle() {
+            renderTriangle();
+        }
+
+        function renderRectangleGrid() {
+            const grid = document.getElementById('rectangleGrid');
+            grid.innerHTML = ''; // Clear previous content
+            grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+            grid.style.gridTemplateRows = 'repeat(2, 1fr)';
+
+            for (let i = 0; i < 6; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('grid-cell');
+                cell.dataset.index = i;
+                cell.onclick = () => toggleRectangleCell(cell);
+                grid.appendChild(cell);
+            }
+            updateRectangleFractionDisplay();
+        }
+
+        let rectangleColoredCells = 0;
+        function toggleRectangleCell(cell) {
+            cell.classList.toggle('colored');
+            rectangleColoredCells = document.querySelectorAll('#rectangleGrid .grid-cell.colored').length;
+            updateRectangleFractionDisplay();
+        }
+
+        function updateRectangleFractionDisplay() {
+            const display = document.getElementById('currentRectangleFraction');
+            display.innerText = `રંગીન ભાગ: ${rectangleColoredCells}/6`;
+        }
+
+        function resetRectangle() {
+            renderRectangleGrid();
+            rectangleColoredCells = 0;
+        }
+
+        // --- 6. લોભી ચોકીદારની વાર્તા (Story of the Greedy Gatekeeper) ---
+        let totalCoins = 100;
+        let remainingCoins = 100;
+
+        function checkGatekeeper1() {
+            const answerInput = document.getElementById('gatekeeper1Answer');
+            const feedbackDiv = document.getElementById('gatekeeper1Feedback');
+            const taken = totalCoins / 2; // 1/2 of 100 = 50
+            const expectedRemaining = totalCoins - taken; // 100 - 50 = 50
+
+            if (parseInt(answerInput.value) === expectedRemaining) {
+                feedbackDiv.innerText = 'સાચો જવાબ! હવે 50 સિક્કા બાકી રહ્યા.';
+                feedbackDiv.classList.remove('text-red-500');
+                feedbackDiv.classList.add('text-green-600');
+                remainingCoins = expectedRemaining;
+            } else {
+                feedbackDiv.innerText = `ખોટો જવાબ. સાચો જવાબ ${expectedRemaining} છે.`;
+                feedbackDiv.classList.remove('text-green-600');
+                feedbackDiv.classList.add('text-red-500');
+            }
+        }
+
+        function checkGatekeeper2() {
+            const answerInput = document.getElementById('gatekeeper2Answer');
+            const feedbackDiv = document.getElementById('gatekeeper2Feedback');
+            const taken = remainingCoins / 2; // 1/2 of 50 = 25
+            const expectedRemaining = remainingCoins - taken; // 50 - 25 = 25
+
+            if (parseInt(answerInput.value) === expectedRemaining) {
+                feedbackDiv.innerText = 'સાચો જવાબ! હવે 25 સિક્કા બાકી રહ્યા.';
+                feedbackDiv.classList.remove('text-red-500');
+                feedbackDiv.classList.add('text-green-600');
+                remainingCoins = expectedRemaining;
+            } else {
+                feedbackDiv.innerText = `ખોટો જવાબ. સાચો જવાબ ${expectedRemaining} છે.`;
+                feedbackDiv.classList.remove('text-green-600');
+                feedbackDiv.classList.add('text-red-500');
+            }
+        }
+
+        function checkGatekeeper3() {
+            const answerInput = document.getElementById('gatekeeper3Answer');
+            const feedbackDiv = document.getElementById('gatekeeper3Feedback');
+            const taken = remainingCoins / 2; // 1/2 of 25 = 12.5 (round down for coins)
+            const expectedRemaining = remainingCoins - taken; // 25 - 12.5 = 12.5 (let's assume coins can be half for this problem or round to 12)
+            // For simplicity, let's assume it's a whole number problem, so maybe the initial coins were 80 or 64.
+            // Given 100, it's better to stick to the exact fraction.
+            // If the problem implies whole coins, then it's a trick question or needs clarification.
+            // For educational purposes, let's assume the question implies the *value* of coins.
+            // 100 -> 50 -> 25 -> 12.5
+            // Let's adjust the problem slightly for whole numbers if needed, or explain.
+            // For 5th grade, it's likely they expect whole numbers.
+            // Let's make the initial coins 64 for perfect halves: 64 -> 32 -> 16 -> 8
+            // Or, keep 100 and indicate it's about the *value* or that coins can be split.
+            // Sticking to the problem as is, 12.5.
+            // If user enters 12 or 13, it's close. Let's make it strict for now.
+
+            // Re-evaluating for 5th grade context: fractions often result in whole numbers for quantities.
+            // Let's re-frame the problem slightly or assume a different starting number.
+            // If the PDF implies whole numbers, the initial number must be a multiple of 8 (2*2*2).
+            // Let's use 80 coins for a cleaner example: 80 -> 40 -> 20 -> 10
+            // Or, 40 coins: 40 -> 20 -> 10 -> 5.
+            // Let's change the initial coins to 40 for this example.
+
+            // Resetting for a better example that yields whole numbers for 5th grade.
+            // Let's assume the problem means 'half of the *remaining* coins'.
+            // If 100 coins:
+            // 1st: 1/2 of 100 = 50. Remaining: 50.
+            // 2nd: 1/2 of 50 = 25. Remaining: 25.
+            // 3rd: 1/2 of 25 = 12.5. Remaining: 12.5.
+            // This is problematic for "coins".
+
+            // Let's assume the story is simplified for the concept, and the answer is 12.5.
+            // Or, let's use a total that works out evenly, like 80 coins.
+            // For the sake of the game, let's assume the user will enter 12.5.
+            // Or, better, simplify the problem to avoid decimals for 5th grade.
+            // Let's modify the problem in the UI to say "80 સોનાના સિક્કા".
+
+            // Update: The problem in the PDF might be abstract. Let's stick to 100 and allow 12.5.
+            // Or, let's make it a multiple choice.
+            // For input type="number", 12.5 is a valid input.
+
+            if (parseFloat(answerInput.value) === expectedRemaining) {
+                feedbackDiv.innerText = 'સાચો જવાબ! ગરીબ માણસ પાસે 12.5 સિક્કા રહ્યા.';
+                feedbackDiv.classList.remove('text-red-500');
+                feedbackDiv.classList.add('text-green-600');
+            } else {
+                feedbackDiv.innerText = `ખોટો જવાબ. સાચો જવાબ ${expectedRemaining} છે.`;
+                feedbackDiv.classList.remove('text-green-600');
+                feedbackDiv.classList.add('text-red-500');
+            }
+        }
+
+        // --- 7. પેટર્ન અને અપૂર્ણાંક (Patterns and Fractions) ---
+        function renderPatternGrid() {
+            const grid = document.getElementById('patternGrid');
+            grid.innerHTML = '';
+            patternColoredCount = 0;
+
+            for (let i = 0; i < totalPatternSquares; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('grid-cell', 'w-full', 'h-full', 'bg-white', 'border', 'border-gray-300');
+                cell.dataset.index = i;
+                cell.onclick = () => togglePatternCell(cell);
+                grid.appendChild(cell);
+            }
+            updatePatternFractionDisplay();
+        }
+
+        function togglePatternCell(cell) {
+            cell.classList.toggle('bg-red-400'); // Use Tailwind class for red
+            cell.classList.toggle('bg-white'); // Toggle back to white
+
+            patternColoredCount = document.querySelectorAll('#patternGrid .bg-red-400').length;
+            updatePatternFractionDisplay();
+        }
+
+        function updatePatternFractionDisplay() {
+            const redFraction = simplifyFraction(patternColoredCount, totalPatternSquares);
+            const whiteCount = totalPatternSquares - patternColoredCount;
+            const whiteFraction = simplifyFraction(whiteCount, totalPatternSquares);
+
+            document.getElementById('coloredSquaresCount').innerText = patternColoredCount;
+            document.getElementById('whiteSquaresCount').innerText = whiteCount;
+            document.getElementById('redFractionDisplay').innerText = `${redFraction.numerator}/${redFraction.denominator}`;
+            document.getElementById('whiteFractionDisplay').innerText = `${whiteFraction.numerator}/${whiteFraction.denominator}`;
+
+            // Check if 1/4 is colored (4 out of 16)
+            if (patternColoredCount === (totalPatternSquares / 4)) {
+                showCustomMessage('સરસ!', 'તમે 1/4 ભાગને લાલ રંગ કર્યો છે!');
+            }
+        }
+
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+
+        function simplifyFraction(numerator, denominator) {
+            const common = gcd(numerator, denominator);
+            return { numerator: numerator / common, denominator: denominator / common };
+        }
+
+        function resetPatternGrid() {
+            renderPatternGrid();
+        }
+
+        // --- 8. શાકભાજીનું ખેતર (Vegetable Farm) ---
+        function renderVegetableFarm() {
+            const farmGrid = document.getElementById('farmGrid');
+            farmGrid.innerHTML = '';
+
+            // Define farm layout (4x4 grid, 16 cells total)
+            // Assign vegetables to cells to represent fractions
+            const farmLayout = [
+                'tomato', 'tomato', 'potato', 'potato',
+                'tomato', 'tomato', 'potato', 'potato',
+                'onion', 'onion', 'carrot', 'carrot',
+                'onion', 'onion', 'carrot', 'carrot'
+            ];
+
+            const vegetableCounts = {
+                tomato: 0,
+                potato: 0,
+                onion: 0,
+                carrot: 0
+            };
+
+            farmLayout.forEach((veg, index) => {
+                const cell = document.createElement('div');
+                cell.classList.add('farm-cell');
+                cell.dataset.veg = veg;
+
+                const img = document.createElement('img');
+                // Using placeholder images for vegetables
+                if (veg === 'tomato') img.src = 'https://placehold.co/40x40/FF6347/FFFFFF?text=🍅';
+                else if (veg === 'potato') img.src = 'https://placehold.co/40x40/A0522D/FFFFFF?text=🥔';
+                else if (veg === 'onion') img.src = 'https://placehold.co/40x40/E0BBE4/FFFFFF?text=🧅';
+                else if (veg === 'carrot') img.src = 'https://placehold.co/40x40/FFA500/FFFFFF?text=🥕';
+                img.alt = veg;
+
+                const text = document.createElement('span');
+                text.innerText = veg === 'tomato' ? 'ટામેટાં' :
+                                 veg === 'potato' ? 'બટાકા' :
+                                 veg === 'onion' ? 'ડુંગળી' :
+                                 'ગાજર';
+
+                cell.appendChild(img);
+                cell.appendChild(text);
+                farmGrid.appendChild(cell);
+
+                vegetableCounts[veg]++;
+            });
+
+            // Calculate and display fractions
+            const totalCells = farmLayout.length; // 16
+            document.getElementById('tomatoFraction').innerText = `${simplifyFraction(vegetableCounts.tomato, totalCells).numerator}/${simplifyFraction(vegetableCounts.tomato, totalCells).denominator}`;
+            document.getElementById('potatoFraction').innerText = `${simplifyFraction(vegetableCounts.potato, totalCells).numerator}/${simplifyFraction(vegetableCounts.potato, totalCells).denominator}`;
+            document.getElementById('onionFraction').innerText = `${simplifyFraction(vegetableCounts.onion, totalCells).numerator}/${simplifyFraction(vegetableCounts.onion, totalCells).denominator}`;
+            document.getElementById('carrotFraction').innerText = `${simplifyFraction(vegetableCounts.carrot, totalCells).numerator}/${simplifyFraction(vegetableCounts.carrot, totalCells).denominator}`;
+        }
+
+
+        // Initial setup: show main menu
+        document.addEventListener('DOMContentLoaded', () => {
+            showMenu();
         });
 
-        let analysis = [];
-        let maxVeg = '';
-        let maxCount = 0;
-
-        for (const veg in counts) {
-            if (veg === 'empty') continue;
-            const fraction = simplifyFraction(counts[veg], totalFarmSections);
-            const [num, den] = fraction.split('/').map(Number);
-            analysis.push(`${vegetableNames[veg]}: ${counts[veg]} ભાગ (${formatFractionForMathJax(fraction)} અથવા ${getFractionDescription(num, den)})`);
-            if (counts[veg] > maxCount) {
-                maxCount = counts[veg];
-                maxVeg = vegetableNames[veg];
-            }
-        }
-        const maxFraction = simplifyFraction(maxCount, totalFarmSections);
-        const [maxNum, maxDen] = maxFraction.split('/').map(Number);
-        analysis.unshift(`ખેતરના સૌથી મોટા ભાગમાં ${maxVeg} ઉગાડે છે. (${formatFractionForMathJax(maxFraction)} અથવા ${getFractionDescription(maxNum, maxDen)} ભાગ)`);
-        setFeedback(analysis.join('<br>'));
-    };
-
-    const handleDistribution = () => {
-        const totalTomatoes = 3; // From map: 4, 6, 8
-        const totalPotatoes = 2; // From map: 1, 7
-
-        // Ramu gives:
-        // Abubakr: 1/5 of tomatoes, 1/3 of potatoes
-        const abubakrTomatoes = Math.floor(totalTomatoes * (1/5)); // 0 for 3 tomatoes
-        const abubakrPotatoes = Math.floor(totalPotatoes * (1/3)); // 0 for 2 potatoes
-
-        // Shrija: 2/5 of tomatoes, 3/6 (1/2) of potatoes
-        const shrijaTomatoes = Math.floor(totalTomatoes * (2/5)); // 1 for 3 tomatoes
-        const shrijaPotatoes = Math.floor(totalPotatoes * (3/6)); // 1 for 2 potatoes
-
-        // Nancy gets the rest
-        const nancyTomatoes = totalTomatoes - abubakrTomatoes - shrijaTomatoes;
-        const nancyPotatoes = totalPotatoes - abubakrPotatoes - shrijaPotatoes;
-
-        setFeedback(`
-            શાકભાજીની વહેંચણી:<br>
-            અબુબકરને મળ્યા: ${abubakrTomatoes} ટમેટાં, ${abubakrPotatoes} બટાકા.<br>
-            શ્રીજાને મળ્યા: ${shrijaTomatoes} ટમેટાં, ${shrijaPotatoes} બટાકા.<br>
-            નેન્સીને મળ્યા: ${nancyTomatoes} ટમેટાં, ${nancyPotatoes} બટાકા.
-        `);
-    };
-
-    // Use useEffect to typeset MathJax after feedback state updates
-    useEffect(() => {
-        if (mathJaxReady && feedbackRef.current && window.MathJax) {
-            window.MathJax.typesetPromise([feedbackRef.current]);
-        }
-    }, [feedback, mathJaxReady]);
-
-    return (
-        <div className="flex flex-col items-center gap-6">
-            <h2 className="text-2xl font-bold text-gray-700">રામુનું શાકભાજીનું ખેતર</h2>
-            <div className="instructions bg-yellow-50 border border-yellow-300 p-4 rounded-lg text-sm text-yellow-800 shadow-sm">
-                <p>રામુના શાકભાજીના ખેતરના 9 સરખા ભાગ કરેલા છે. તે તેના ખેતરમાં કઈ-કઈ શાકભાજી ઉગાડે છે તે જુઓ અને પ્રશ્નોના જવાબ આપો.</p>
-                <ul className="list-disc ml-5 mt-2">
-                    <li>"ખેતરનું વિશ્લેષણ કરો" પર ક્લિક કરીને દરેક શાકભાજીનો કેટલો ભાગ છે તે જાણો.</li>
-                    <li>"વહેંચણી જુઓ" પર ક્લિક કરીને રામુ તેના મિત્રોને શાકભાજી કેવી રીતે વહેંચે છે તે જુઓ.</li>
-                </ul>
-            </div>
-            <div className="grid grid-cols-3 gap-2 border-2 border-gray-300 p-2 rounded-lg bg-gray-100 shadow-inner">
-                {farmSections.map((veg, index) => (
-                    <div key={index} className="w-24 h-24 flex items-center justify-center rounded-md" style={{ backgroundColor: vegetableColors[veg] }}>
-                        <span className="text-sm font-semibold text-white text-shadow-sm">{vegetableNames[veg]}</span>
-                    </div>
-                ))}
-            </div>
-            <div className="flex gap-4">
-                <button onClick={analyzeFarm} className="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105">ખેતરનું વિશ્લેષણ કરો</button>
-                <button onClick={handleDistribution} className="px-5 py-2 bg-purple-600 text-white rounded-lg font-semibold shadow-md hover:bg-purple-700 transition-all duration-200 transform hover:scale-105">વહેંચણી જુઓ</button>
-            </div>
-            {feedback && (
-                <div ref={feedbackRef} className="bg-blue-100 px-4 py-2 rounded-md shadow-sm text-gray-700 font-medium border border-blue-200">
-                </div>
-            )}
-        </div>
-    );
-};
-
-export default App;
+    </script>
+</body>
+</html>
